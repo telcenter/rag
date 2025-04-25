@@ -141,7 +141,11 @@ class ReasoningDataQueryEngine:
             
             filtered_table: Table = original_table.where("_P_order", are.not_equal_to(-1)).sort("_P_order")#.drop("_P_index", "_P_order")
 
-            return filtered_table.select(query.selected_columns)
+            result_table = filtered_table.select(query.selected_columns)
+            result_df = result_table.to_df()
+            result_df = result_df.dropna(axis=1, how='all')
+            result_table = Table().from_df(result_df)
+            return result_table
         except Exception as e:
             log_info(f"Error applying query: {e}")
             return Table()
