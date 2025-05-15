@@ -137,7 +137,7 @@ class MyRAG:
         )
         log_info("Initializing RAG: Done.")
     
-    async def check_local_knowledge_faq(self, query: str, chat_history: str, local_content: str):
+    def check_local_knowledge_faq(self, query: str, chat_history: str, local_content: str):
         """Router function to determine if we can answer from local knowledge"""
         prompt = f"""Vai trò: Bạn là trợ lý ảo thông minh có khả năng giải đáp thắc mắc của người dùng.
         Nhiệm vụ: Xác định xem bạn có thể trả lời câu hỏi của người dùng mà chỉ dựa theo kiến thức đã cho và lịch sử chat hay không. (Đó là tóm tắt lịch sử chat giữa bạn và người dùng)
@@ -210,7 +210,7 @@ class MyRAG:
         # return response.strip().lower() == "- trả lời: có"
         return "có" in response.strip().lower()
 
-    async def write_local_knowledge_reasoning_query(self, chat_history: str, query: str) -> str | None:
+    def write_local_knowledge_reasoning_query(self, chat_history: str, query: str) -> str | None:
         prompt = f"""
         Bạn là một trợ lý ảo thông minh của nhà mạng Viettel, có khả năng giải đáp thắc mắc của người dùng.
         Nhiệm vụ: Xác định xem bạn có thể trả lời câu hỏi của người dùng mà chỉ dựa theo kiến thức đã cho hay không, bằng cách truy vấn từ cơ sở dữ liệu.
@@ -222,7 +222,7 @@ class MyRAG:
 
         Chú ý 1: Nếu dữ liệu theo ngày là số dương thì nghĩa là một ngày người dùng chỉ được dùng tối đa bấy nhiêu dữ liệu mà thôi, sang ngày khác lại được thêm. Còn nếu không có dữ liệu theo ngày thì nghĩa là người dùng được dùng thoải mái toàn bộ dữ liệu trong chu kỳ mà không bị giới hạn theo ngày, cho đến khi hết dữ liệu trong chu kỳ đó thì phải chờ chu kỳ tiếp theo (nếu gia hạn) mới được tiếp tục sử dụng.
         Chú ý 1b: Nếu người dùng hỏi dung lượng thì cần chọn các cột sau: "4G tốc độ tiêu chuẩn/ngày", "4G tốc độ cao/ngày", "4G tốc độ tiêu chuẩn/chu kỳ", "4G tốc độ cao/chu kỳ", "Chi tiết".
-        Chú ý 2: Bạn phải luôn SELECT các cột sau trong mọi trường hợp: "Mã dịch vụ", "Cú pháp đăng ký", "Giá (VNĐ)" và "Chi tiết".
+        Chú ý 2: Bạn phải luôn SELECT các cột sau trong mọi trường hợp: "Mã dịch vụ", "Cú pháp", "Giá (VNĐ)" và "Chi tiết".
         Chú ý 3: Nếu người dùng nhờ tư vấn cho điện thoại cục gạch, nghe gọi ít hoặc ít sử dụng mạng... thì bạn cần hiểu là phải tìm gói cước rẻ nhất.
 
         Cú pháp truy cập lấy dữ liệu từ cơ sở dữ liệu như sau:
@@ -245,9 +245,12 @@ class MyRAG:
         Mệnh đề WHERE là bắt buộc.
         Khi người dùng hỏi giá rẻ, giá rẻ nhất thì cần viết query theo kiểu "Giá (VNĐ)" REACHES MIN, chứ không được so sánh với một giá trị cụ thể nào đó, chẳng hạn "Giá (VNĐ)" < 100000.
         Tuy nhiên nếu người dùng hỏi "giá rẻ hơn" thì phải dựa vào lịch sử chat để biết người dùng đang nói tới những gói nào, sau đó xác định gói rẻ hơn trong các gói đó.
-        Nếu người dùng hỏi "nhiều data", "data không giới hạn"... thì nên chọn các gói có "4G tốc độ tiêu chuẩn/ngày" REACHES MIN hoặc "4G tốc độ cao/ngày" REACHES MAX, hoặc cột "Chi tiết" CONTAINS "không giới hạn", "thả ga" .v.v.
+        Nếu người dùng hỏi "nhiều data", "data không giới hạn", "miễn phí"... thì nên chọn các gói có "4G tốc độ tiêu chuẩn/ngày" REACHES MIN hoặc "4G tốc độ cao/ngày" REACHES MAX, hoặc cột "Chi tiết" CONTAINS "không giới hạn", "thả ga", "miễn phí" .v.v.
 
-        Trong trường hợp bạn có thể trả lời câu hỏi của người dùng bằng cách tạo một truy vấn dữ liệu như trên, hãy trả về truy vấn. Nếu không, trả về IMPOSSIBLE.
+        Trong trường hợp bạn có thể trả lời câu hỏi của người dùng bằng cách tạo một truy vấn dữ liệu như trên, hãy trả về truy vấn.
+        Nếu không tạo được truy vấn nhưng câu hỏi vẫn thuộc phạm vi thông tin gói cước, sim thẻ, nhà mạng, giá cả... thì trả về:
+            SELECT "Mã dịch vụ", "Cú pháp", "Giá (VNĐ)" và "Chi tiết" WHERE "Chi tiết" CONTAINS "<các từ khóa trong câu hỏi của người dùng>"
+        Nếu câu hỏi hoàn toàn nằm ngoài phạm vi những thông tin gói cước, sim thẻ... như trên thì trả về IMPOSSIBLE.
 
         Hãy nghiên cứu các ví dụ dưới đây, và trả lời câu hỏi được đưa ra ở cuối cùng:
         Ví dụ 1:
@@ -257,7 +260,7 @@ class MyRAG:
         Ví dụ 2:
         - Lịch sử chat: Không có
         - Câu hỏi: Làm thế nào để đăng ký dịch vụ SD70?
-        - Trả lời: SELECT "Chi tiết", "Cú pháp đăng ký" và "Mã dịch vụ" WHERE "Mã dịch vụ" = "SD70"
+        - Trả lời: SELECT "Chi tiết", "Cú pháp" và "Mã dịch vụ" WHERE "Mã dịch vụ" = "SD70"
         Ví dụ 3:
         - Lịch sử chat: Không có
         - Câu hỏi: Em ơi thế sao thuê bao của anh cứ tự trừ tiền thế nhỉ, em xem giúp anh số dư còn bao nhiêu với
@@ -278,16 +281,19 @@ class MyRAG:
             Người dùng muốn được tư vấn gói 70.000đ/tháng.
             Trợ lý ảo xác nhận gói SD70 (70.000đ/tháng, 30GB) phù hợp yêu cầu, nhưng lưu ý 30GB có thể không đủ cho nhu cầu xem phim nhiều. Gợi ý tham khảo các gói data lớn hơn nếu cần.
         - Câu hỏi: À vậy gói này đăng ký thế nào em nhỉ?
-        - Trả lời: SELECT "Mã dịch vụ", "Cú pháp đăng ký", "Giá (VNĐ)", "Chi tiết" WHERE "Mã dịch vụ" = "SD70"
+        - Trả lời: SELECT "Mã dịch vụ", "Cú pháp", "Giá (VNĐ)", "Chi tiết" WHERE "Mã dịch vụ" = "SD70"
 
         Lịch sử chat: {chat_history}
         Câu hỏi: {query}
         """
+        log_info(f"write_local_knowledge_reasoning_query: prompt: {prompt}")
+        log_info(f"write_local_knowledge_reasoning_query: calling...")
         response = self.llm_for_checking_rag_knowledge.call(prompt)
+        log_info(f"write_local_knowledge_reasoning_query: response: {response}")
         return None if "impossible" in response.strip().lower() else response.strip()
 
-    async def check_local_knowledge_reasoning(self, chat_history: str, query: str):
-        q = await self.write_local_knowledge_reasoning_query(chat_history, query)
+    def check_local_knowledge_reasoning(self, chat_history: str, query: str):
+        q = self.write_local_knowledge_reasoning_query(chat_history, query)
         if q is None:
             return None
         log_info(f"check_local_knowledge_reasoning: query written by LLM: {q}")
@@ -345,7 +351,7 @@ class MyRAG:
         vector_store = FAISS.from_documents(splits, embeddings)
         return vector_store
 
-    async def get_local_content(self, vector_store, query):
+    def get_local_content(self, vector_store, query):
         """Get local content from vector store"""
         log_info(f"Getting the most relevant local content...")
         k = 5
@@ -386,22 +392,24 @@ class MyRAG:
 
         return documents
 
-    async def get_answer_from_local_knowledge(self, vector_store, chat_history, query):
+    def get_answer_from_local_knowledge(self, vector_store, chat_history, query):
         """Get answer from local knowledge (FAQ)"""
-        context = await self.get_local_content(vector_store, query)
+        context = self.get_local_content(vector_store, query)
         if self.check_local_knowledge_faq(query, chat_history, context):
             return context
         else:
             return None
 
-    async def process_query(self, chat_history, query: str, customer_emotion: str):
+    def process_query(self, chat_history, query: str, customer_emotion: str):
         log_info(f"PROCESSING QUERY: {query}")
 
         context = None
 
         # Check reasoning-based RAG
         reasoning_retrieval_start_time = pd.Timestamp.now()
-        reasoning_data_context = await self.check_local_knowledge_reasoning(chat_history, query)
+        print(f"Checking reasoning-based RAG...")
+        reasoning_data_context = self.check_local_knowledge_reasoning(chat_history, query)
+        print(f"Checking reasoning-based RAG: Done.")
         reasoning_retrieval_end_time = pd.Timestamp.now()
         if reasoning_data_context is not None:
             context = reasoning_data_context
@@ -412,8 +420,8 @@ class MyRAG:
         if context is None:
             # Check relevance-based RAG
             retrieval_start_time = pd.Timestamp.now()
-            local_content = await self.get_local_content(self.vector_store, query)
-            can_answer_locally = await self.check_local_knowledge_faq(query, chat_history, local_content)
+            local_content = self.get_local_content(self.vector_store, query)
+            can_answer_locally = self.check_local_knowledge_faq(query, chat_history, local_content)
             retrieval_end_time = pd.Timestamp.now()
             retrieval_time = retrieval_end_time - retrieval_start_time
             if can_answer_locally:
@@ -460,6 +468,7 @@ class MyRAG:
             Trong mọi trường hợp, bạn KHÔNG được hướng dẫn người dùng liên hệ tổng đài chăm sóc khách hàng của Viettel, hoặc truy cập website của Viettel.
             Bạn cũng cần chú ý tới cảm xúc của người dùng, nếu người dùng có cảm xúc "tiêu cực" thì bạn cần thể hiện sự đồng cảm và sẵn sàng hỗ trợ họ, nếu cần có thể nói lời xin lỗi, thông cảm.
             Với giá tiền, bạn ghi rõ "Việt Nam Đồng" thay vì viết tắt, ví dụ không viết tắt là "10000 VNĐ", "10000đ" mà phải viết là "Việt Nam Đồng".
+            Hãy trả lời ngắn gọn súc tích, không quá dài.
 
             Dưới đây là tóm tắt lịch sử trò chuyện giữa bạn (Trợ lý ảo) và người dùng (Câu nói của người dùng):
             {chat_history}
@@ -559,21 +568,20 @@ class MyRAG:
         )
         thread.start()
 
-    async def answer(self, chat_id: int, chat_history: str, query: str, customer_emotion: str, on_new_token: Callable[[str | None], Any]):
+    def answer(self, chat_id: int, chat_history: str, query: str, customer_emotion: str, on_new_token: Callable[[str | None], Any]):
         time_start = pd.Timestamp.now()
-        answer_iter, rag_time = await self.process_query(chat_history, query, customer_emotion)
+        answer_iter, rag_time = self.process_query(chat_history, query, customer_emotion)
         time_end = pd.Timestamp.now()
 
         print(f"Answer: ", end="")
         full_answer = ""
-        tasks = []
         for answer in answer_iter:
             if answer is None:
                 break
             full_answer += answer
             print(answer, end="", flush=True)
-            asyncio.create_task(on_new_token(answer))
-        asyncio.create_task(on_new_token(None))
+            on_new_token(answer)
+        on_new_token(None)
         self.squeeze_history_in_background(chat_id, old_chat_history=chat_history, update=HistoryUpdate(assistant=full_answer, user=query, user_first=True))
         print("\n")
         log_info_and_print(f"*** Took {(time_end - time_start).total_seconds()} seconds of which RAG took {rag_time.total_seconds()} seconds.\n")

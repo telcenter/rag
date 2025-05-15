@@ -153,7 +153,7 @@ class ReasoningDataQueryEngine:
 
             selected_columns = filter(
                 lambda x: x in filtered_table.labels,
-                query.selected_columns
+                [*query.selected_columns, "Chi tiết"],
             )
 
             result_table = filtered_table.select(selected_columns)

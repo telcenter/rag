@@ -1,5 +1,6 @@
 if __name__ == "__main__":
     from . import Main, SOCKET_HOST, SOCKET_PORT, log_info
+    import asyncio
 
     m = Main()
 
@@ -13,19 +14,19 @@ if __name__ == "__main__":
 
     # Handle a new connection
     @sio.event
-    async def connect(sid, environ):
+    def connect(sid, environ):
         print(f"Client connected: {sid}")
 
     # Handle messages
     @sio.event
-    async def message(sid, data):
+    def message(sid, data):
         print(f"Message from {sid}: {data}")
         chat_id = data.get("chat_id")
         chat_summary = data.get("chat_summary")
         customer_message = data.get("customer_message")
         customer_emotion = data.get("customer_emotion")
 
-        async def on_new_token(token: str | None):
+        def on_new_token(token: str | None):
             #             is_finished: Type.Boolean(),
             # error: Type.Boolean(),
             # data: Type.String(),
@@ -41,14 +42,14 @@ if __name__ == "__main__":
                     "error": False,
                     "data": "",
                 }
-            await sio.emit("message-response", data, room=sid)
+            asyncio.create_task(sio.emit("message-response", data, room=sid))
 
-        await m.rag.answer(
+        m.rag.answer(
             chat_id, chat_summary, customer_message, customer_emotion, on_new_token
         )
 
     @sio.event
-    async def ter(sid, data):
+    def ter(sid, data):
         print(f"TER from {sid}: {data}")
         text = data.get("text")
         ser_emotion = data.get("ser_emotion")
@@ -72,11 +73,11 @@ if __name__ == "__main__":
                 Văn bản như sau: {text}"""
         result = m.rag.llm_for_ter.call(prompt)
         log_info(f"TER result: {result}")
-        await sio.emit("ter-response", result, room=sid)
+        asyncio.create_task(sio.emit("ter-response", result, room=sid))
 
     # Handle disconnection
     @sio.event
-    async def disconnect(sid):
+    def disconnect(sid):
         print(f"Client disconnected: {sid}")
 
     # Run the web app
