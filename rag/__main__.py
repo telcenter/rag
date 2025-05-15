@@ -41,7 +41,7 @@ if __name__ == "__main__":
                     "error": False,
                     "data": "",
                 }
-            await sio.emit("message", data, room=sid)
+            await sio.emit("message-response", data, room=sid)
 
         await m.rag.answer(
             chat_id, chat_summary, customer_message, customer_emotion, on_new_token
@@ -72,7 +72,7 @@ if __name__ == "__main__":
                 Văn bản như sau: {text}"""
         result = m.rag.llm_for_ter.call(prompt)
         log_info(f"TER result: {result}")
-        await sio.emit("ter", result, room=sid)
+        await sio.emit("ter-response", result, room=sid)
 
     # Handle disconnection
     @sio.event
