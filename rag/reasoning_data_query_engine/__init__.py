@@ -53,8 +53,18 @@ re_select_and_where = re.compile(r'^\s*SELECT\s+(?P<selected_columns>(\"([^\"])+
 re_simple_expression = re.compile(r'(?P<lhs>\"([^\"])+\")\s+((REACHES\s+(?P<reaches>MIN|MAX))|((?P<infixOperator>=|<=|>=|>|<|\!=|CONTAINS)\s+(?P<rhs>\"([^\"])+\")))', re.MULTILINE)
 
 class ReasoningDataQueryEngine:
-    def __init__(self, file_path: str, embedder: Callable[[str], np.ndarray]):
-        self.table = Table().read_table(file_path)
+    def __init__(self, df: pd.DataFrame, embedder: Callable[[str], np.ndarray]):
+        # Convert possibly numeric columns to numeric types
+        for col in df.columns:
+            col_non_empty = df[col].replace("", pd.NA).dropna()
+            # Try converting to numeric
+            converted = pd.to_numeric(col_non_empty, errors="coerce")
+
+            # If most of the non-empty values are numeric, convert the whole column
+            if converted.notna().sum() >= len(col_non_empty) * 0.9:
+                df[col] = pd.to_numeric(df[col], errors="coerce")  # convert with NaNs preserved
+
+        self.table = Table().from_df(df)
         self.embedder = embedder
     
     @staticmethod
@@ -141,7 +151,12 @@ class ReasoningDataQueryEngine:
             
             filtered_table: Table = original_table.where("_P_order", are.not_equal_to(-1)).sort("_P_order")#.drop("_P_index", "_P_order")
 
-            result_table = filtered_table.select(query.selected_columns)
+            selected_columns = filter(
+                lambda x: x in filtered_table.labels,
+                query.selected_columns
+            )
+
+            result_table = filtered_table.select(selected_columns)
             result_df = result_table.to_df()
             result_df = result_df.dropna(axis=1, how='all')
             result_table = Table().from_df(result_df)

@@ -10,3 +10,5 @@ mamba install -y -c pytorch -c nvidia -c rapidsai -c conda-forge -c nvidia pytor
 mamba install -y langchain sentence-transformers python-dotenv
 pip install pandas langchain_huggingface google-genai
 pip install -U langchain-community
+pip install mysqlclient redis
+pip install python-socketio aiohttp
